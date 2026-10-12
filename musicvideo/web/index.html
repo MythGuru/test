@@ -1,0 +1,106 @@
+<title>TikTok Famous</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Poppins:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: the video fills the screen edge to edge; a poster and an auto-hiding control bar sit over it. */
+:root {
+  --ink: #0b0c10;
+  --paper: #f6f3ea;
+  --text: #f4f1ec;
+  --muted: #b3aeb8;
+  --accent: #ff3d8b;
+  --glass: rgba(14, 12, 20, 0.62);
+  --line: rgba(255, 255, 255, 0.16);
+  --hand: 'Kalam', 'Comic Sans MS', cursive;
+  --ui: 'Poppins', 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--ink); color: var(--text); font-family: var(--ui); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#stage { position: fixed; inset: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) 0; display: grid; place-items: center; background: var(--ink); }
+#gl, #lyrics { grid-area: 1 / 1; display: block; max-width: 100%; }
+#lyrics { pointer-events: none; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; }
+#poster { background: radial-gradient(ellipse at center, rgba(11,12,16,0.15), rgba(11,12,16,0.78)); }
+.title { font-family: var(--hand); font-weight: 700; font-size: clamp(44px, 9vw, 120px); line-height: 0.95; margin: 0; letter-spacing: 0.005em; text-wrap: balance; text-shadow: 0 6px 30px rgba(0,0,0,0.55); }
+.title span { color: var(--accent); }
+.kicker { font-size: clamp(12px, 1.6vw, 15px); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+.sub { color: var(--muted); font-size: clamp(14px, 2vw, 17px); margin: 16px auto 26px; max-width: 34ch; line-height: 1.5; }
+.big { font: 700 17px/1 var(--ui); background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 16px 34px; cursor: pointer; box-shadow: 0 10px 30px rgba(255,61,139,0.4); }
+.big:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+#bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px calc(14px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(8,7,12,0.85), rgba(8,7,12,0)); display: grid; gap: 10px; transition: opacity .35s ease; }
+body.idle #bar, body.capture #bar { opacity: 0; pointer-events: none; }
+body.idle { cursor: none; }
+.scrub { position: relative; height: 18px; display: grid; align-items: center; }
+#seek { width: 100%; margin: 0; accent-color: var(--accent); height: 18px; }
+#ticks { position: absolute; left: 0; right: 0; top: 50%; height: 0; pointer-events: none; }
+#ticks span { position: absolute; width: 2px; height: 8px; margin-top: -4px; background: rgba(255,255,255,0.45); border-radius: 1px; }
+.row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.row .grow { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#time { font-variant-numeric: tabular-nums; font-size: 13px; }
+.ctl { font: 600 13px/1 var(--ui); color: var(--text); background: var(--glass); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; }
+.ctl.off { opacity: 0.55; text-decoration: line-through; }
+select.ctl { appearance: none; padding-right: 14px; }
+#loading { color: var(--muted); font-size: 14px; letter-spacing: 0.08em; }
+#error { color: var(--text); max-width: 40ch; line-height: 1.5; }
+#end { background: rgba(11,12,16,0.55); }
+@media (max-width: 520px) { #chapter { display: none; } .ctl { padding: 9px 11px; } }
+</style>
+
+<div id="stage">
+  <canvas id="gl" aria-label="TikTok Famous music video"></canvas>
+  <canvas id="lyrics" aria-hidden="true"></canvas>
+  <div class="overlay" id="loading">Sharpening the pencil…</div>
+  <div class="overlay" id="error" hidden></div>
+  <div class="overlay" id="poster" hidden>
+    <div>
+      <p class="kicker">Official music video</p>
+      <h1 class="title">TikTok <span>Famous</span></h1>
+      <p class="sub">A pencil sketch comes to life, chasing likes on a desk at midnight. Best with sound on.</p>
+      <button class="big" id="start" type="button">Play with sound</button>
+    </div>
+  </div>
+  <div class="overlay" id="end" hidden>
+    <div>
+      <h2 class="title" style="font-size:clamp(36px,7vw,84px)">TikTok <span>Famous</span></h2>
+      <p class="sub">Somebody did call.</p>
+      <button class="big" id="again" type="button">Watch again</button>
+    </div>
+  </div>
+  <div id="bar">
+    <div class="scrub"><input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Seek"><div id="ticks"></div></div>
+    <div class="row">
+      <button class="ctl" id="pp" type="button" aria-label="Play">Play</button>
+      <span id="time">0:00 / 4:06</span>
+      <span class="grow" id="chapter"></span>
+      <span class="grow" id="status" aria-live="polite"></span>
+      <button class="ctl" id="cc" type="button" aria-pressed="true">Lyrics</button>
+      <label class="sr" for="fmt" style="position:absolute;left:-9999px">Frame</label>
+      <select class="ctl" id="fmt" aria-label="Frame shape">
+        <option value="fill">Fit screen</option>
+        <option value="169">16:9</option>
+        <option value="916">9:16</option>
+      </select>
+      <button class="ctl" id="fs" type="button">Full screen</button>
+    </div>
+  </div>
+  <audio id="song" src="song.mp3" preload="auto" playsinline></audio>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="data.js"></script>
+<script src="core.js"></script>
+<script src="world.js"></script>
+<script src="characters.js"></script>
+<script src="fx.js"></script>
+<script src="physics.js"></script>
+<script src="story.js"></script>
+<script src="main.js"></script>
