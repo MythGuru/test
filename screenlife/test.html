@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@800;900&display=swap">
+<style>body{margin:0;background:#000}</style></head><body>
+<canvas id="out" width="1080" height="1920"></canvas>
+<script src="data.js"></script><script src="ui.js"></script><script src="scenes.js"></script><script src="player.js"></script>
+<script>
+const out = document.getElementById('out');
+window.SLcap = (t, w, h) => { if (out.width !== w) { out.width = w; out.height = h; } SL.render(out, t); return out.toDataURL('image/jpeg', 0.92); };
+Promise.all([document.fonts.load("900 40px Montserrat"), document.fonts.load("700 40px Inter"), document.fonts.load("400 40px Inter")]).then(() => { window.__ready = true; });
+</script></body></html>
