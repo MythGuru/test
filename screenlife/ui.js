@@ -86,20 +86,46 @@
   };
 
   // ---------------------------------------------------------------- status bar
+  // frosted glass: blur whatever is already drawn under the rectangle
+  const gS = document.createElement('canvas'); gS.width = 120; gS.height = 120;
+  UI.glass = (c, x, y, w, h, r, tint) => {
+    const g = gS.getContext('2d'), k = 0.12, sw = Math.max(4, Math.round(w * k)), sh = Math.max(4, Math.round(h * k));
+    gS.width = sw; gS.height = sh;
+    g.imageSmoothingQuality = 'high';
+    try { g.drawImage(c.canvas, x, y, w, h, 0, 0, sw, sh); } catch (e) {}
+    c.save(); UI.rr(c, x, y, w, h, r); c.clip();
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    c.drawImage(gS, 0, 0, sw, sh, x - 6, y - 6, w + 12, h + 12);
+    c.fillStyle = tint || 'rgba(245,245,250,0.72)'; c.fillRect(x, y, w, h);
+    c.restore();
+  };
+  // Dynamic Island with optional live activity: { kind: 'call'|'rec'|'timer', text }
+  UI.island = (c, o = {}) => {
+    const act = o.activity;
+    const w = act ? 560 : 330, x = (W - w) / 2;
+    UI.box(c, x, 30, w, 100, 50, '#000');
+    if (!act) { c.beginPath(); c.arc(x + w - 62, 80, 14, 0, Math.PI * 2); c.fillStyle = '#0d0f1a'; c.fill(); return; }
+    if (act.kind === 'call') { UI.box(c, x + 26, 52, 56, 56, 28, '#30d158'); UI.icon(c, 'phone', x + 38, 64, 32, '#fff'); UI.text(c, act.text, x + w - 40, 95, { size: 38, weight: 700, color: '#30d158', align: 'right' }); }
+    if (act.kind === 'rec') { c.beginPath(); c.arc(x + 56, 80, 16, 0, Math.PI * 2); c.fillStyle = '#ff3b30'; c.fill(); UI.text(c, act.text, x + w - 40, 95, { size: 38, weight: 700, color: '#ff3b30', align: 'right' }); }
+    if (act.kind === 'timer') { UI.icon(c, 'bell', x + 32, 56, 48, '#ff9f0a'); UI.text(c, act.text, x + w - 40, 95, { size: 38, weight: 700, color: '#ff9f0a', align: 'right' }); }
+  };
+  UI.homeBar = (c, dark) => UI.box(c, W / 2 - 140, H - 30, 280, 11, 6, dark ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)');
+
   UI.status = (c, o = {}) => {
+    UI.island(c, o);
     const col = o.dark ? '#111' : '#fff';
-    UI.text(c, o.time || '9:41', 96, 82, { size: 44, weight: 700, color: col, align: 'center' });
+    if (o.time !== '') UI.text(c, o.time || '9:41', 150, 96, { size: 46, weight: 700, color: col, align: 'center' });
     // signal bars
-    for (let i = 0; i < 4; i++) { c.fillStyle = col; c.globalAlpha = o.noSignal && i > 0 ? 0.3 : 1; UI.rr(c, 776 + i * 15, 76 - (i + 1) * 9, 10, (i + 1) * 9, 2); c.fill(); }
+    for (let i = 0; i < 4; i++) { c.fillStyle = col; c.globalAlpha = o.noSignal && i > 0 ? 0.3 : 1; UI.rr(c, 790 + i * 15, 92 - (i + 1) * 9, 10, (i + 1) * 9, 2); c.fill(); }
     c.globalAlpha = 1;
     // wifi
     c.strokeStyle = col; c.lineWidth = 6; c.lineCap = 'round';
-    for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(870, 80, 10 + i * 10, -Math.PI * 0.78, -Math.PI * 0.22); c.stroke(); }
+    for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(884, 96, 10 + i * 10, -Math.PI * 0.78, -Math.PI * 0.22); c.stroke(); }
     // battery
     const lvl = o.battery === undefined ? 0.82 : o.battery;
-    UI.box(c, 918, 50, 82, 38, 11, null, col, 3);
-    c.globalAlpha = 0.5; UI.box(c, 1003, 61, 6, 16, 3, col); c.globalAlpha = 1;
-    UI.box(c, 924, 56, Math.max(6, 70 * lvl), 26, 7, lvl < 0.2 ? '#ff3b30' : col);
+    UI.box(c, 930, 64, 78, 38, 11, null, col, 3);
+    c.globalAlpha = 0.5; UI.box(c, 1011, 75, 6, 16, 3, col); c.globalAlpha = 1;
+    UI.box(c, 936, 70, Math.max(6, 66 * lvl), 26, 7, lvl < 0.2 ? '#ff3b30' : col);
     if (o.dnd) UI.text(c, '☾', 730, 82, { size: 38, color: '#a78bfa', align: 'center' });
   };
 
@@ -163,9 +189,10 @@
   UI.notif = (c, x, y, w, o) => {
     const h = o.h || 172;
     c.save();
-    c.shadowColor = 'rgba(0,0,0,0.35)'; c.shadowBlur = 30; c.shadowOffsetY = 10;
-    UI.box(c, x, y, w, h, 44, o.bg || 'rgba(245,245,250,0.94)');
+    c.shadowColor = 'rgba(0,0,0,0.3)'; c.shadowBlur = 34; c.shadowOffsetY = 12;
+    UI.box(c, x, y, w, h, 44, 'rgba(0,0,0,0.01)');
     c.restore();
+    if (o.bg) UI.box(c, x, y, w, h, 44, o.bg); else UI.glass(c, x, y, w, h, 44, 'rgba(242,242,247,0.78)');
     // app icon
     const [a, b] = UI.pal(o.seed || 0);
     const g = c.createLinearGradient(x + 30, y + 34, x + 120, y + 124); g.addColorStop(0, o.iconA || a); g.addColorStop(1, o.iconB || b);

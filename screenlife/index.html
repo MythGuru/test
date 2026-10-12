@@ -1,0 +1,128 @@
+<title>TikTok Famous</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@800;900&display=swap">
+<style>
+/* Layout: the video fills the viewport; on a tall screen it is the phone itself, on a wide one a handset floats over a blurred fill. */
+:root {
+  --bg: #050507; --text: #f5f5f7; --muted: #a1a1aa; --accent: #ff2d55; --glass: rgba(20,20,24,0.62); --line: rgba(255,255,255,0.16);
+  --ui: 'Inter', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; --cap: 'Montserrat', 'Inter', Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#stage { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); }
+#out { display: block; max-width: 100%; max-height: 100%; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; }
+#poster { background: radial-gradient(ellipse at center, rgba(5,5,7,0.72), rgba(5,5,7,0.9)); }
+.kicker { font-size: 13px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+.title { font-family: var(--cap); font-weight: 900; font-size: clamp(44px, 10vw, 112px); line-height: 0.95; margin: 0; text-transform: lowercase; text-wrap: balance; }
+.title span { color: var(--accent); }
+.sub { color: var(--muted); font-size: clamp(14px, 2vw, 17px); margin: 14px auto 24px; max-width: 32ch; line-height: 1.5; }
+.big { font: 800 17px/1 var(--ui); background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 16px 34px; cursor: pointer; box-shadow: 0 10px 30px rgba(255,45,85,0.4); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+#bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px calc(14px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0)); display: grid; gap: 10px; transition: opacity .35s ease; }
+body.idle #bar { opacity: 0; pointer-events: none; }
+body.idle { cursor: none; }
+#seek { width: 100%; margin: 0; accent-color: var(--accent); }
+.row { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+#time { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+.ctl { font: 600 13px/1 var(--ui); color: var(--text); background: var(--glass); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; }
+.ctl.off { opacity: 0.55; text-decoration: line-through; }
+select.ctl { appearance: none; }
+#loading { color: var(--muted); font-size: 14px; letter-spacing: 0.08em; }
+</style>
+
+<div id="stage">
+  <canvas id="out" width="1080" height="1920" aria-label="TikTok Famous music video"></canvas>
+  <div class="overlay" id="loading">Loading…</div>
+  <div class="overlay" id="poster" hidden>
+    <div>
+      <p class="kicker">Official music video</p>
+      <h1 class="title">tiktok <span>famous</span></h1>
+      <p class="sub">Day 1 of trying to go viral. 47 likes. Then a million. Then 3 a.m. Sound on.</p>
+      <button class="big" id="start" type="button">Play with sound</button>
+    </div>
+  </div>
+  <div id="bar">
+    <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Seek">
+    <div class="row">
+      <button class="ctl" id="pp" type="button">Play</button>
+      <span id="time">0:00 / 4:06</span>
+      <span class="grow"></span>
+      <button class="ctl" id="cc" type="button" aria-pressed="true">Captions</button>
+      <select class="ctl" id="fmt" aria-label="Frame shape">
+        <option value="auto">Fit screen</option>
+        <option value="916">9:16</option>
+        <option value="169">16:9</option>
+      </select>
+      <button class="ctl" id="fs" type="button">Full screen</button>
+    </div>
+  </div>
+  <audio id="song" src="song.mp3" preload="auto" playsinline></audio>
+</div>
+
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="scenes.js"></script>
+<script src="scenes2.js"></script>
+<script src="player.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const out = $('out'), audio = $('song'), stage = $('stage'), DUR = window.MVDATA.dur;
+  let fmt = 'auto', playing = false, base = 0, stamp = 0, seekT = 45.4, dirty = true, hideAt = 0;
+  const now = () => performance.now() / 1000;
+
+  function layout() {
+    const r = stage.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tall = fmt === '916' || (fmt === 'auto' && r.width / r.height < 0.9);
+    const aspect = tall ? 9 / 16 : 16 / 9;
+    let w = r.width, h = r.height; if (w / h > aspect) w = h * aspect; else h = w / aspect;
+    out.style.width = w + 'px'; out.style.height = h + 'px';
+    // cap the backing store so phones stay smooth
+    const k = Math.min(dpr, (tall ? 1080 : 1920) / w);
+    out.width = Math.round(w * k); out.height = Math.round(h * k);
+    dirty = true;
+  }
+  new ResizeObserver(layout).observe(stage);
+
+  function songTime() {
+    if (!playing) return seekT;
+    const pred = base + (now() - stamp), at = audio.currentTime;
+    if (Math.abs(pred - at) > 0.12) { base = at; stamp = now(); return at; }
+    return pred;
+  }
+  audio.addEventListener('playing', () => { base = audio.currentTime; stamp = now(); });
+  audio.addEventListener('ended', () => { playing = false; seekT = DUR; setIcon(); });
+  function play() { $('poster').hidden = true; if (audio.ended || seekT >= DUR - 0.2) { audio.currentTime = 0; seekT = 0; } const p = audio.play(); playing = true; base = audio.currentTime; stamp = now(); if (p && p.catch) p.catch(() => { playing = false; setIcon(); }); setIcon(); poke(); }
+  function pause() { audio.pause(); seekT = songTime(); playing = false; setIcon(); poke(); }
+  const setIcon = () => { $('pp').textContent = playing ? 'Pause' : 'Play'; };
+  $('start').addEventListener('click', () => { audio.currentTime = 0; seekT = 0; play(); });
+  $('pp').addEventListener('click', () => (playing ? pause() : play()));
+  const seek = $('seek'); seek.max = DUR;
+  seek.addEventListener('input', () => { const v = +seek.value; audio.currentTime = v; seekT = v; base = v; stamp = now(); $('poster').hidden = true; dirty = true; poke(); });
+  $('cc').addEventListener('click', () => { SL.captions = !SL.captions; $('cc').classList.toggle('off', !SL.captions); $('cc').setAttribute('aria-pressed', SL.captions); dirty = true; });
+  $('fmt').addEventListener('change', e => { fmt = e.target.value; layout(); });
+  $('fs').addEventListener('click', () => { const el = document.documentElement; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen(); } catch (e) {} });
+  document.addEventListener('keydown', e => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); playing ? pause() : play(); } });
+  function poke() { document.body.classList.remove('idle'); hideAt = now() + 2.6; }
+  ['pointermove', 'pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, poke, { passive: true }));
+  const fmtT = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+  function loop() {
+    const t = Math.min(DUR, songTime());
+    if (playing || dirty) {
+      const cap = SL.captions; if (!$('poster').hidden) SL.captions = false;
+      SL.render(out, t); SL.captions = cap; dirty = false;
+    }
+    seek.value = t; $('time').textContent = fmtT(t) + ' / ' + fmtT(DUR);
+    if (playing && now() > hideAt) document.body.classList.add('idle');
+    requestAnimationFrame(loop);
+  }
+  const fonts = document.fonts && document.fonts.load ? Promise.all([document.fonts.load("900 40px Montserrat"), document.fonts.load("700 40px Inter"), document.fonts.load("400 40px Inter")]).catch(() => {}) : Promise.resolve();
+  Promise.race([fonts, new Promise(r => setTimeout(r, 2500))]).then(() => { layout(); $('loading').hidden = true; $('poster').hidden = false; requestAnimationFrame(loop); });
+})();
+</script>

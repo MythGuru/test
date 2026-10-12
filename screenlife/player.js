@@ -46,10 +46,13 @@
     let cur = 0; for (let j = 0; j < ws.length; j++) if (t >= ws[j][0]) cur = j;
     // show the current chunk of up to 3 words
     const start = Math.floor(cur / 3) * 3, chunk = ws.slice(start, start + 3);
-    const size = 92 * scale;
+    let size = 92 * scale;
     const words = chunk.map(w => w[1].toUpperCase().replace(/[.,]+$/, ''));
     c.font = `900 ${size}px ${UI.F_CAP}`;
-    const sp = size * 0.28, widths = words.map(w => c.measureText(w).width);
+    let sp = size * 0.28, widths = words.map(w => c.measureText(w).width);
+    // shrink long chunks so they always fit inside the screen
+    const full = widths.reduce((a, b) => a + b, 0) + sp * (words.length - 1), fit = Math.min(1, 940 / full);
+    if (fit < 1) { size *= fit; sp *= fit; widths = widths.map(w => w * fit); }
     const shown = words.filter((w, j) => t >= ws[start + j][0]).length;
     const total = widths.slice(0, shown).reduce((a, b) => a + b, 0) + sp * Math.max(0, shown - 1);
     let x = x0 - total / 2;
@@ -104,12 +107,29 @@
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (ow / oh < 0.75) { drawScreen(c, src, t, 0, 0, ow, oh); return; }
     // landscape: blurred backdrop + framed vertical video
-    cs.drawImage(src, 0, 0, 54, 96);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-    c.drawImage(small, 0, -oh * 0.4, ow, ow * 96 / 54);
+    if ('filter' in c) { c.filter = `blur(${Math.round(oh * 0.04)}px)`; c.drawImage(src, -ow * 0.05, -oh * 0.9, ow * 1.1, ow * 1.1 * H / W); c.filter = 'none'; }
+    else { cs.drawImage(src, 0, 0, 54, 96); c.drawImage(small, 0, -oh * 0.4, ow, ow * 96 / 54); }
     c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(0, 0, ow, oh);
-    const h = oh, w = h * W / H, x = (ow - w) / 2;
-    c.save(); c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 60; c.fillStyle = '#000'; c.fillRect(x, 0, w, h); c.restore();
-    drawScreen(c, src, t, x, 0, w, h);
+    // a real handset: titanium frame, black bezel, glass, buttons, soft shadow
+    const sh = oh * 0.9, sw = sh * W / H, sx = (ow - sw) / 2, sy = (oh - sh) / 2 + Math.sin(t * 0.6) * oh * 0.004;
+    const bz = sh * 0.016, fr = sh * 0.008, rad = sh * 0.075;
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,0.65)'; c.shadowBlur = oh * 0.08; c.shadowOffsetY = oh * 0.03;
+    UI.rr(c, sx - bz - fr, sy - bz - fr, sw + 2 * (bz + fr), sh + 2 * (bz + fr), rad + bz + fr);
+    const ti = c.createLinearGradient(sx - bz, sy, sx + sw + bz, sy + sh); ti.addColorStop(0, '#d9d6d0'); ti.addColorStop(0.25, '#8f8b85'); ti.addColorStop(0.5, '#e6e3de'); ti.addColorStop(0.75, '#7d7a75'); ti.addColorStop(1, '#c9c5bf');
+    c.fillStyle = ti; c.fill(); c.restore();
+    c.fillStyle = '#9a968f';
+    UI.rr(c, sx - bz - fr * 2.2, sy + sh * 0.18, fr * 1.6, sh * 0.05, fr * 0.8); c.fill();
+    UI.rr(c, sx - bz - fr * 2.2, sy + sh * 0.26, fr * 1.6, sh * 0.09, fr * 0.8); c.fill();
+    UI.rr(c, sx - bz - fr * 2.2, sy + sh * 0.37, fr * 1.6, sh * 0.09, fr * 0.8); c.fill();
+    UI.rr(c, sx + sw + bz + fr * 0.6, sy + sh * 0.29, fr * 1.6, sh * 0.14, fr * 0.8); c.fill();
+    UI.rr(c, sx - bz, sy - bz, sw + 2 * bz, sh + 2 * bz, rad + bz); c.fillStyle = '#050506'; c.fill();
+    c.save(); UI.rr(c, sx, sy, sw, sh, rad); c.clip();
+    drawScreen(c, src, t, sx, sy, sw, sh);
+    const gl = c.createLinearGradient(sx, sy, sx + sw, sy + sh * 0.6); gl.addColorStop(0, 'rgba(255,255,255,0.10)'); gl.addColorStop(0.35, 'rgba(255,255,255,0.02)'); gl.addColorStop(0.36, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = gl; c.fillRect(sx, sy, sw, sh);
+    c.restore();
+    UI.rr(c, sx - bz - fr * 0.5, sy - bz - fr * 0.5, sw + 2 * bz + fr, sh + 2 * bz + fr, rad + bz + fr * 0.5); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = fr * 0.4; c.stroke();
   };
 })();

@@ -2,7 +2,7 @@
 (function () {
   const SL = window.SL, UI = SL.UI, U = SL.U, W = SL.W, H = SL.H;
   const D = window.MVDATA;
-  const ME = '@mia.exe';
+  const ME = SL.ME = '@mia.exe';
 
   // ---------------------------------------------------------------- beat + audio helpers
   const BEATS = D.beats, NB = BEATS.length;
@@ -14,8 +14,8 @@
   };
   SL.env = (name, t) => { const a = D.env[name], x = t * D.env.fps, i = Math.floor(x), f = x - i; if (i < 0 || i >= a.length - 1) return 0; return (a[i] * (1 - f) + a[i + 1] * f) / 99; };
   SL.kick = t => { let m = 0; for (let k = 0; k < 5; k++) m = Math.max(m, SL.env('kick', t - k / 30) * Math.exp(-k * 0.6)); return m; };
-  const pulse = (t, at, len = 0.35) => (t >= at && t < at + len ? Math.sin(Math.PI * (t - at) / len) : 0);
-  const pop = (t, at, len = 0.45) => (t < at ? 0 : U.back(U.c01((t - at) / len)));
+  const pulse = SL.pulse = (t, at, len = 0.35) => (t >= at && t < at + len ? Math.sin(Math.PI * (t - at) / len) : 0);
+  const pop = SL.pop = (t, at, len = 0.45) => (t < at ? 0 : U.back(U.c01((t - at) / len)));
 
   // ---------------------------------------------------------------- shared texture: film grain
   const grain = document.createElement('canvas'); grain.width = grain.height = 256;
@@ -184,9 +184,9 @@
   };
 
   // like it, share it, save it, stay
-  S.actions = (c, t) => {
+  S.actions = (c, t, o = {}) => {
     const p = { heart: pulse(t, 38.16, 0.5), share: pulse(t, 38.7, 0.5), bookmark: pulse(t, 39.24, 0.5) };
-    UI.feedPost(c, t, { user: ME, caption: 'day 1 of trying to go viral #fyp #foryou', likes: 48, comments: 1, saves: t > 39.24 ? 1 : 0, shares: t > 38.7 ? 1 : 0, liked: t > 38.16, saved: t > 39.24, seed: 0, avatarSeed: 0, label: 'day 1 of trying to go viral', slot: 'post1', pop: p });
+    UI.feedPost(c, t, { user: ME, verified: !!o.verified, caption: o.caption || 'day 1 of trying to go viral #fyp #foryou', likes: o.base ? 2400000 : 48, comments: o.base ? 48200 : 1, saves: (o.base ? 120000 : 0) + (t > 39.24 ? 1 : 0), shares: (o.base ? 76000 : 0) + (t > 38.7 ? 1 : 0), liked: t > 38.16, saved: t > 39.24, seed: o.seed || 0, avatarSeed: 0, label: o.label || 'day 1 of trying to go viral', slot: 'post1', pop: p });
     UI.status(c, { time: '10:26' });
     const items = [[38.16, 'heart', '#ff2d55', 'LIKE'], [38.7, 'share', '#fff', 'SHARE'], [39.24, 'bookmark', '#ffc400', 'SAVE'], [39.64, 'plus', '#fff', 'FOLLOW']];
     for (const [at, ic, col, word] of items) {
@@ -201,12 +201,12 @@
   };
 
   // don't you dare scroll past me: the post refuses to be swiped away
-  S.noScroll = (c, t) => {
+  S.noScroll = (c, t, o = {}) => {
     const tries = [40.22, 40.69, 41.16];
     let off = 0; for (const a of tries) { const k = U.range(t, a, a + 0.42); if (k > 0 && k < 1) off = Math.sin(Math.PI * Math.min(1, k * 1.6)) * (k < 0.62 ? 1 : 0) * 0.28 + (k >= 0.62 ? 0 : 0); }
     const y = -off * H;
     c.save(); c.translate(0, y);
-    UI.feedPost(c, t, { user: ME, caption: 'day 1 of trying to go viral #fyp #foryou', likes: 48, comments: 1, saves: 1, shares: 1, liked: true, saved: true, seed: 0, avatarSeed: 0, label: 'don’t you dare', slot: 'post1' });
+    UI.feedPost(c, t, { user: ME, verified: !!o.verified, caption: o.caption || 'day 1 of trying to go viral #fyp #foryou', likes: o.likes || 48, comments: o.likes ? 48200 : 1, saves: o.likes ? 120000 : 1, shares: o.likes ? 76000 : 1, liked: true, saved: true, seed: o.seed || 0, avatarSeed: 0, label: o.label || 'don’t you dare', slot: 'post1' });
     c.translate(0, H);
     UI.feedPost(c, t, { user: '@glowupgabby', caption: 'grwm for a date that’s not happening', likes: 98100, comments: 2210, saves: 5400, shares: 1300, seed: 6, avatarSeed: 5, label: 'grwm' });
     c.restore();
@@ -216,12 +216,12 @@
   };
 
   // hold on... wait for it: posting stalls at 99%
-  S.holdOn = (c, t) => {
+  S.holdOn = (c, t, o = {}) => {
     bg(c, '#000');
     UI.status(c, { time: '10:29' });
     const z = 1 + 0.12 * U.range(t, 41.96, 44.9);
     c.save(); c.translate(W / 2, H / 2); c.scale(z, z); c.translate(-W / 2, -H / 2);
-    UI.video(c, 240, 420, 600, 860, t, { seed: 0, label: 'day 2. no filter. just me.', r: 30, slot: 'post2' });
+    UI.video(c, 240, 420, 600, 860, t, { seed: o.seed || 0, label: o.label || 'day 2. no filter. just me.', r: 30, slot: 'post2' });
     const pct = t < 44.55 ? Math.min(99, Math.round(60 + 39 * U.out(U.range(t, 41.96, 43.0)))) : 100;
     UI.text(c, pct < 100 ? 'Posting… ' + pct + '%' : 'Posted!', W / 2, 1410, { size: 56, weight: 800, align: 'center' });
     UI.box(c, 190, 1460, 700, 18, 9, 'rgba(255,255,255,0.18)');
@@ -230,14 +230,15 @@
   };
 
   // the drop: notification avalanche and a counter that explodes
-  const NAMES = ['@zoe.w', '@kayla_m', '@its.dev', '@noah.k', '@bri.xo', '@luca_v', '@ana.b', '@marcus', '@tay.lr', '@sam_s', '@juju', '@rory.j', '@ella.ok', '@mateo', '@priya', '@leo.x'];
+  const NAMES = SL.NAMES = ['@zoe.w', '@kayla_m', '@its.dev', '@noah.k', '@bri.xo', '@luca_v', '@ana.b', '@marcus', '@tay.lr', '@sam_s', '@juju', '@rory.j', '@ella.ok', '@mateo', '@priya', '@leo.x'];
   const VERBS = ['liked your video', 'started following you', 'shared your video', 'commented: OMG', 'commented: queen ♥', 'liked your video', 'started following you', 'commented: how is this so real'];
-  S.famous = (c, t) => {
+  S.famous = (c, t, o = {}) => {
     bg(c, '#000');
     const wall = c.createLinearGradient(0, 0, W, H); wall.addColorStop(0, '#2a0b3d'); wall.addColorStop(1, '#0b1d3d'); c.fillStyle = wall; c.fillRect(0, 0, W, H);
     UI.status(c, { time: '10:31' });
     const k = U.range(t, 44.96, 48.4);
-    const n = t < 44.96 ? 48 : Math.round(48 + Math.pow(k, 2.2) * 1240000);
+    const n0 = o.from || 48, n1 = o.to || 1240048;
+    const n = t < 44.96 ? n0 : Math.round(n0 + Math.pow(k, 2.2) * (n1 - n0));
     const p = pop(t, 44.96, 0.4);
     UI.text(c, 'followers', W / 2, 250, { size: 44, weight: 700, align: 'center', color: '#ddd' });
     UI.counter(c, U.fmt(n), W / 2, 450, 190 * (0.7 + 0.3 * p), { color: '#fff' });
@@ -248,23 +249,25 @@
       const age = (t - 44.9) - i / (4 + 13 * k);
       const y = 560 + (total - i) * 190 + 190 * U.out5(U.c01(1 - age * rate * 0.25)) * -0.0;
       if (y > H) continue;
-      UI.notif(c, 30, y, W - 60, { title: NAMES[i % NAMES.length], body: VERBS[(i * 3) % VERBS.length], seed: i, icon: i % 3 === 1 ? 'user' : i % 3 === 2 ? 'comment' : 'heart', when: 'now' });
+      const real = o.real && i % 3 === 0 ? o.real[(i / 3 | 0) % o.real.length] : null;
+      if (real) UI.notif(c, 30, y, W - 60, { title: real[0], body: real[1], seed: 4, icon: 'msg', iconA: '#30d158', iconB: '#00a86b', when: 'now' });
+      else UI.notif(c, 30, y, W - 60, { title: NAMES[i % NAMES.length], body: VERBS[(i * 3) % VERBS.length], seed: i, icon: i % 3 === 1 ? 'user' : i % 3 === 2 ? 'comment' : 'heart', when: 'now' });
     }
     c.restore();
   };
 
   // riding the algo: the feed flies by, and it's her every other swipe
-  S.algo = (c, t) => {
+  S.algo = (c, t, o = {}) => {
     const bp = SL.beatPos(t), i = Math.floor(bp), f = bp - i;
     const sw = U.inOut(U.c01(f / 0.32));
     const post = j => j % 2 === 0
-      ? { user: ME, verified: j > 2, caption: 'day 2. no filter. just me. #fyp', likes: 380000 + j * 91000, comments: 12400, saves: 30200, shares: 18100, seed: 0, avatarSeed: 0, label: 'day 2. no filter. just me.', slot: 'post2', liked: true }
+      ? { user: ME, verified: j > 2 || !!o.verified, caption: o.caption || 'day 2. no filter. just me. #fyp', likes: (o.base || 380000) + j * 91000, comments: 12400, saves: 30200, shares: 18100, seed: o.seed || 0, avatarSeed: 0, label: o.label || 'day 2. no filter. just me.', slot: 'post2', liked: true }
       : { user: NAMES[j % NAMES.length], caption: 'stitch with ' + ME + ' this is literally me', likes: 54000 + j * 3000, comments: 800, saves: 2100, shares: 900, seed: (j % 6) + 1, avatarSeed: j, label: 'this is literally me' };
     c.save(); c.translate(0, -sw * H); UI.feedPost(c, t, post(i)); c.translate(0, H); UI.feedPost(c, t, post(i + 1)); c.restore();
     UI.status(c, { time: '10:34' });
     // trend line overlay
     const k = U.range(t, 48.58, 51.5);
-    c.save(); UI.box(c, 60, 270, 600, 330, 34, 'rgba(0,0,0,0.55)');
+    c.save(); c.translate(0, 910); UI.box(c, 60, 270, 600, 330, 34, 'rgba(0,0,0,0.55)');
     UI.text(c, 'Views', 100, 335, { size: 34, weight: 600, color: '#bbb' });
     UI.text(c, '↑ ' + Math.round(1200 + 98000 * Math.pow(k, 2)).toLocaleString('en-US') + '%', 100, 400, { size: 52, weight: 900, color: '#30d158' });
     c.beginPath(); c.moveTo(100, 560);
@@ -274,11 +277,11 @@
   };
 
   // nobody can tame this: verified, one million
-  S.million = (c, t) => {
+  S.million = (c, t, o = {}) => {
     UI.feedPost(c, t, { user: ME, verified: true, caption: 'day 2. no filter. just me. #fyp', likes: 1000000, comments: 48200, saves: 120000, shares: 76000, seed: 0, avatarSeed: 0, label: 'day 2. no filter. just me.', slot: 'post2', liked: true, pop: { heart: pulse(t, 51.58, 0.5) } });
     UI.status(c, { time: '10:36' });
     const p = pop(t, 51.58, 0.35);
-    if (p > 0) { c.save(); c.translate(W / 2, 820); c.rotate(-0.06); c.scale(p, p); UI.counter(c, '1M', 0, 120, 380, { stroke: '#ff2d55', lw: 26 }); c.restore(); }
+    if (p > 0) { c.save(); c.translate(W / 2, 820); c.rotate(-0.06); c.scale(p, p); UI.counter(c, o.big || '1M', 0, 120, 380, { stroke: '#ff2d55', lw: 26 }); c.restore(); }
   };
 
   // ---------------------------------------------------------------- timeline: [start, scene, transition into it]
